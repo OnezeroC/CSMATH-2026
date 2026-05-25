@@ -1,0 +1,92 @@
+% ============================================================
+% 5. Implementation and Experiments
+% ============================================================
+\section{Implementation and Experiments}
+\label{sec:experiments}
+
+We conduct three experiments at increasing scale. Experiment~1 exhaustively verifies the wreath product symmetry (Theorem~\ref{thm:symmetry-group}) on a tiny MHA layer. Experiment~2 compares exact decomposition against spectral proxy on alignment scores (Theorems~\ref{thm:exact-decomposition}, \ref{thm:spectral-consistency}) using synthetic weights. Experiment~3 provides a small-scale proof-of-concept of end-to-end task vector transport on TinyViT. We note upfront: Exp.~1 tests the theorem's verifiable scope (head-block-preserving constraint), Exp.~2 quantifies differences on the \emph{alignment objective} (not downstream performance), and Exp.~3 serves as qualitative evidence only.
+
+\subsection{Implementation Environment}
+Python 3.10; PyTorch 2.x (neural networks), NumPy, SciPy (\texttt{linear\_sum\_assignment}), Matplotlib. Experiments~1--2 run on CPU; Experiment~3 benefits from GPU. Code in \texttt{code/}.
+
+\subsection{Experiment 1: Wreath Symmetry Enumeration}
+
+\paragraph{Objective.} Verify Theorem~\ref{thm:symmetry-group}: enumerate all $\mathcal{S}_{d_m}$ permutations on a tiny MHA layer and check which preserve equivariance.
+
+\paragraph{Setup.} $d_m = 8$, $H = 2$, $d_k = 4$. Single MHA layer ($W_Q, W_K, W_V$ random, $W_O = I$). Random input $X \in \mathbb{R}^{4 \times 8}$. Compute baseline $O_{\text{base}} = \text{MHA}_W(X)$. For each $P \in \mathcal{S}_8$ (40,320 elements), apply transformation in the head-block-preserving form of Theorem~\ref{thm:symmetry-group} and compute error $\varepsilon(P) = \|O_P - P \cdot O_{\text{base}}\|_F$. The wreath subgroup $\mathcal{W}(2,4)$ has order 1,152.
+
+\paragraph{Results.} Figure~\ref{fig:exp1} shows error distributions. All 1,152 wreath elements achieve $\varepsilon < 10^{-10}$ (machine precision), confirming sufficiency. All 39,168 non-wreath elements produce $\varepsilon > 10^{-2}$, confirming that cross-head dimension mixing disrupts MHA output under the head-block-preserving $f_P$ form.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/exp1_wreath_verification.pdf}
+    \caption{Exp.~1: Wreath (blue, $\varepsilon \approx 0$) vs.\ non-wreath (red, $\varepsilon \gg 0$) permutation errors.}
+    \label{fig:exp1}
+\end{figure}
+
+\subsection{Experiment 2: Exact Decomposition vs.\ Spectral Proxy}
+
+\paragraph{Objective.} Compare inter-head matching via spectral proxy (Eq.~\ref{eq:lap-inter}) against exact decomposition (Algorithm~\ref{alg:exact}). Quantify the information loss of spectral distance.
+
+\paragraph{Setup.} $d_m = 16$, $H = 4$, $d_k = 4$. 100 random trials with independently generated MHA weights $(W^A, W^B)$. For each method, we solve the inter-head matching $\sigma$ and report alignment score: $\text{Score}(\sigma) = \sum_{i=1}^H \langle W_{\sigma(i)}^B, \tau_i^* \cdot W_i^A \rangle$, where $\tau_i^*$ is the optimal intra-head alignment given $\sigma$.
+
+\paragraph{Results.} Figure~\ref{fig:exp2} shows the comparison. Exact decomposition consistently achieves higher alignment scores (mean $120.25 \pm 13.57$ vs.\ $90.86 \pm 18.29$; 32.35\% relative improvement). In 95\% of trials the exact method yields strictly better outer matching; only 5\% produce identical matchings. The gap quantifies the information loss of the spectral proxy: $\|\Sigma_i - \Sigma_j\|_F$ discards singular vector direction, which dominates when heads share similar singular values but differ in orientation.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/exp2a_boxplot.pdf}
+        \caption{Alignment score distributions (100 trials).}
+        \label{fig:exp2a}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/exp2b_gap.pdf}
+        \caption{Score gap histogram (Exact $-$ Spectral).}
+        \label{fig:exp2b}
+    \end{subfigure}
+    \caption{Exp.~2: Exact decomposition vs.\ spectral proxy on alignment scores.}
+    \label{fig:exp2}
+\end{figure}
+
+\textbf{Caveat.} This experiment compares alignment \emph{scores} (Frobenius inner product), not downstream task performance. Whether the 32\% score gap translates to task-level differences is evaluated qualitatively in Exp.~3.
+
+\subsection{Experiment 3: End-to-End Proof-of-Concept}
+
+\paragraph{Objective.} Demonstrate the full pipeline on a small realistic model, as qualitative evidence.
+
+\paragraph{Setup.} TinyViT ($d_m = 192$, $H = 3$, $L = 4$, $\approx$2M parameters) on CIFAR-10 binary classification. Train $\theta_A$ (5 epochs) and $\theta_B$ (5 epochs, different seed and data order). Fine-tune $\theta_A$ on the binary task (5 epochs, 20\% data) to obtain $\theta_A^{\text{ft}}$ and $\tau = \theta_A^{\text{ft}} - \theta_A$. Align using the spectral proxy variant; transport via $\tilde{\theta}_B^{\text{ft}} = \theta_B + \alpha \cdot P(\tau)$ for $\alpha \in [0, 2.0]$. Baselines: vanilla ($P=I$) and random permutation.
+
+\paragraph{Results.} Figure~\ref{fig:exp3} shows the outcome. Base model accuracies: $\theta_A$ 91.15\%, $\theta_B$ 90.15\%. Task vector norm: 17.34. Best per-method accuracies: Wreath 90.40\% ($\alpha=1.5$), Vanilla 90.30\% ($\alpha=1.0$), Random 90.45\% ($\alpha=0.6$). All methods perform within 0.15 percentage points of each other---well within sampling noise for $\approx$2,000 test samples.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/exp3a_scaling.pdf}
+        \caption{Accuracy vs.\ scaling $\alpha$.}
+        \label{fig:exp3a}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/exp3b_pareto.pdf}
+        \caption{Task vs.\ proxy accuracy.}
+        \label{fig:exp3b}
+    \end{subfigure}
+    \caption{Exp.~3: Small-scale proof-of-concept task vector transport. Note the narrow $y$-axis range in (b); differences are within sampling noise.}
+    \label{fig:exp3}
+\end{figure}
+
+\paragraph{Interpretation.} This experiment is a \textbf{proof-of-concept, not quantitative evidence}. Limitations include: (i) the binary classification task is too easy (ceiling effect near 90\%); (ii) the TinyViT at 2M parameters with $H=3$ heads offers limited room for alignment to matter; (iii) only a single run was performed (no error bars); (iv) the exact decomposition variant was not compared due to computational constraints. The fact that random permutation achieves the highest raw accuracy at low $\alpha$ underscores that this setting lacks the discriminative power to rank methods. Quantitative conclusions require larger models, harder tasks, and multi-seed repetition.
+
+\subsection{Discussion}
+
+Key takeaways across experiments:
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Theoretical verifiability} (Exp.~1): Under the head-block-preserving constraint, the wreath product subgroup is exhaustively verified on a tiny MHA layer.
+    \item \textbf{Alignment score gap} (Exp.~2): Exact decomposition outperforms spectral proxy on the alignment objective by $\sim$32\%; the gap is due to discarded singular vector information. Whether this translates to downstream gains remains to be tested.
+    \item \textbf{Proof-of-concept} (Exp.~3): On TinyViT with binary CIFAR-10, all methods are statistically indistinguishable. This does \emph{not} invalidate the theoretical framework but rather indicates that the experimental setup lacks resolving power.
+\end{enumerate}

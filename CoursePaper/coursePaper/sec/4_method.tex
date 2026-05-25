@@ -1,0 +1,132 @@
+% ============================================================
+% 4. Method Analysis
+% ============================================================
+\section{Method Analysis}
+\label{sec:method}
+
+\subsection{Algorithms}
+
+We present two algorithm variants. Algorithm~\ref{alg:exact} (exact decomposition, Theorem~\ref{thm:exact-decomposition}) uses optimal intra-head LAP costs for the outer cost matrix, yielding the global optimum under the wreath constraint. Algorithm~\ref{alg:spectral} (spectral proxy, Theorem~\ref{thm:spectral-consistency}) uses SVD-based spectral distance as the outer cost, requiring only $H$ inner LAPs.
+
+\begin{algorithm}[htbp]
+    \caption{Wreath Alignment (Exact Decomposition)}
+    \label{alg:exact}
+    \SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
+    \Input{Two $L$-layer Transformer weights $\theta_A, \theta_B$; $d_m, H, d_k$}
+    \Output{Per-layer permutations $\{P_\ell\}_{\ell=1}^{L} \subset \mathcal{W}(H, d_k)$}
+    \BlankLine
+    Initialize $P_\ell \leftarrow I_{d_m}$ for all $\ell$; $P_0, P_{L+1} \leftarrow I_{d_m}$\;
+    \Repeat{until permutations stabilize (typically 3--5 rounds)}{
+        \For{$\ell = 1$ \KwTo $L$}{
+            \eIf{layer $\ell$ is MHA}{
+                \textbf{Inner enumeration}: for all $H^2$ pairs $(i,j) \in [H]\times[H]$\;
+                \quad $\tau_{ij}^* \leftarrow \argmax_{\tau \in \mathcal{S}_{d_k}} \sum_M \langle W_M^{B,(j)}, \tau \cdot W_M^{A,(i)} \rangle$\;
+                \quad $c_{ij} \leftarrow -\sum_M \langle W_M^{B,(j)}, \tau_{ij}^* \cdot W_M^{A,(i)} \rangle$\;
+                \textbf{Outer LAP}: $\sigma^* \leftarrow \argmin_{\sigma \in \mathcal{S}_H} \sum_i c_{i,\sigma(i)}$\;
+                $\tau_h^* \leftarrow \tau_{h,\sigma^*(h)}^*$ for $h = 1,\ldots,H$\;
+                Compose $P_\ell \leftarrow (\sigma^*; \tau_1^*, \ldots, \tau_H^*)$\;
+            }{
+                MLP layer: $P_\ell \leftarrow \argmax_{P \in \mathcal{S}_{d_m}} \langle W_\ell^B, P W_\ell^A P_{\ell-1}^\top \rangle$
+            }
+        }
+    }
+    \Return $\{P_\ell\}_{\ell=1}^{L}$\;
+\end{algorithm}
+
+\begin{algorithm}[htbp]
+    \caption{Wreath Alignment (Spectral Proxy)}
+    \label{alg:spectral}
+    \SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
+    \Input{Same as Algorithm~\ref{alg:exact}}
+    \Output{Per-layer permutations $\{P_\ell\}_{\ell=1}^{L} \subset \mathcal{W}(H, d_k)$}
+    \BlankLine
+    \Repeat{until permutations stabilize}{
+        \For{$\ell = 1$ \KwTo $L$}{
+            \eIf{layer $\ell$ is MHA}{
+                \textbf{Inter-head (spectral)}: $D_{ij} = \sum_M \|\Sigma_i^{B}(W_M) - \Sigma_j^{A}(W_M)\|_F$\;
+                $\sigma^* \leftarrow \argmin_{\sigma} \sum_i D_{i,\sigma(i)}$\;
+                \textbf{Intra-head}: for $H$ matched pairs only\;
+                \quad $\tau_i^* \leftarrow \argmax_\tau \sum_M \langle W_M^{B,(i)}, \tau \cdot W_M^{A,(\sigma^*(i))} \rangle$\;
+                Compose $P_\ell \leftarrow (\sigma^*; \tau_1^*, \ldots, \tau_H^*)$\;
+            }{
+                MLP layer: same as Algorithm~\ref{alg:exact}
+            }
+        }
+    }
+    \Return $\{P_\ell\}_{\ell=1}^{L}$\;
+\end{algorithm}
+
+The key difference: Algorithm~\ref{alg:exact} precomputes all $H^2$ optimal intra-head alignment costs $c_{ij}$; Algorithm~\ref{alg:spectral} substitutes the spectral distance $D_{ij}$, computing only $H$ intra-head LAPs (post outer matching).
+
+\subsection{Inter-Head and Intra-Head Assignment}
+
+For the spectral proxy variant, the inter-head matching solves
+\begin{equation}\label{eq:lap-inter}
+    \min_{\sigma \in \mathcal{S}_H} \sum_{i=1}^{H} D_{i, \sigma(i)},\quad
+    D_{ij} = \sum_{M \in \{Q,K,V\}} \big\| \Sigma_i^{B}(W_M) - \Sigma_j^{A}(W_M) \big\|_F,
+\end{equation}
+where $\Sigma_i(W_M)$ are the singular values of head $i$'s projection matrix. Permutation invariance (Theorem~\ref{thm:spectral-consistency}) guarantees well-definedness. This $H \times H$ LAP is solved by the Hungarian algorithm in $O(H^3)$ time.
+
+For each matched head pair, the intra-head alignment maximizes the inner product:
+\begin{equation}\label{eq:lap-intra}
+    \tau^* = \argmax_{\tau \in \mathcal{S}_{d_k}} \sum_{M \in \{Q,K,V\}} \big\langle W_M^{B,(i)},\; \tau \cdot W_M^{A,(\sigma^*(i))} \big\rangle,
+\end{equation}
+also a $d_k \times d_k$ LAP solvable in $O(d_k^3)$. The $H$ intra-head problems are independent.
+
+\subsection{Group Structure Analysis}
+
+\begin{theorem}[Maximal permutation symmetry subgroup under head-block preservation]\label{thm:symmetry-group}
+Let $W = \{W_Q, W_K, W_V\}$ be MHA projection matrices with $W_O = I$. Consider an output permutation $P \in \mathcal{S}_{d_m}$ and weight transformation $f_P$. The pair $(P, f_P)$ preserves MHA equivariance if for all inputs $X$:
+\begin{equation}\label{eq:equivariance-condition}
+    \text{MHA}_{f_P(W)}(X) = P \cdot \text{MHA}_W(X).
+\end{equation}
+If $f_P$ is constrained to the form $f_P(W_M^{(h)}) = \tau_h \cdot W_M^{(\pi(h))}$ (i.e., each new head's weights are a left-permuted copy of some original head's row block---\emph{preserving the head partition}), then the subgroup of all such $P$ is isomorphic to the wreath product $\mathcal{W}(H, d_k) = \mathcal{S}_H \wr \mathcal{S}_{d_k}$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+\emph{Sufficiency} ($\mathcal{W} \subseteq \mathcal{G}$): For $P = (\sigma; \tau_1, \ldots, \tau_H)$, define $f_P$ as in \eqref{eq:wreath-action}. Then $Q'_h = Q_{\sigma^{-1}(h)} \tau_h^\top$, and similarly for $K, V$. The attention score becomes $A'_h = \softmax(Q_{\sigma^{-1}(h)}\tau_h^\top\tau_h K_{\sigma^{-1}(h)}^\top / \sqrt{d_k}) = A_{\sigma^{-1}(h)}$, using $\tau_h^\top\tau_h = I$. The head output is $O'_h = O_{\sigma^{-1}(h)}\tau_h^\top$, and concatenation yields $O' = P \cdot O$. Hence equivariance holds.
+
+\emph{Necessity} ($\mathcal{G} \subseteq \mathcal{W}$): Under the partition-preserving constraint, each head's $d_k$ dimensions are mapped as a block. The map $\pi: [H] \to [H]$ must be bijective. Suppose not: if $\pi(h_1) = \pi(h_2) = h^\star$, then $Q'_{h_1} = Q_{h^\star} \tau_{h_1}^\top$ and $Q'_{h_2} = Q_{h^\star} \tau_{h_2}^\top$ (and similarly for $K$). Since permutation matrices are orthogonal, $A'_{h_1} = \softmax(Q_{h^\star} \tau_{h_1}^\top \tau_{h_1} K_{h^\star}^\top / \sqrt{d_k}) = A_{h^\star}$ and identically $A'_{h_2} = A_{h^\star}$. Thus both new heads share the original head $h^\star$'s attention pattern. Consequently $O'_{h_1}$ and $O'_{h_2}$ are parameterized by a single $A_{h^\star}$ and lie in a one-dimensional subspace of $\mathbb{R}^{n \times d_k}$. But the corresponding two segments of $P \cdot \text{MHA}_W(X)$ are two independent original head outputs, generically spanning a two-dimensional subspace---a contradiction on a set of positive measure. Thus $\pi$ is bijective, $\sigma = \pi^{-1} \in \mathcal{S}_H$, and the dimension permutation $\tau_h \in \mathcal{S}_{d_k}$ within each matched block completes the wreath product structure.
+\end{proof}
+
+\begin{remark}\label{rmk:thm1-scope}
+Theorem~\ref{thm:symmetry-group} characterizes the maximal symmetry \emph{under the head-block-preserving constraint}. Whether broader $f_P$ forms (allowing cross-head weight mixing) admit additional equivariances is an open question. The $W_O = I$ assumption simplifies analysis; when $W_O \neq I$, the symmetry group involves additional compatibility conditions with $W_O$'s column permutations.
+\end{remark}
+
+\begin{theorem}[Exact decomposition and global optimality]\label{thm:exact-decomposition}
+Under the wreath product constraint, the single-layer alignment problem $\max_{P \in \mathcal{W}(H, d_k)} \langle W^B, P \cdot W^A \rangle$ is solved to global optimality by Algorithm~\ref{alg:exact}. Specifically, the optimal inter-head matching $\sigma^*$ is obtained by solving a single $H \times H$ LAP with cost matrix $c_{ij} = -\max_{\tau \in \mathcal{S}_{d_k}} \sum_M \langle W_M^{B,(j)}, \tau \cdot W_M^{A,(i)} \rangle$ (cost of matching A-head $i$ to B-head $j$), where each $c_{ij}$ is the optimal value of a $d_k \times d_k$ inner LAP.
+\end{theorem}
+
+\begin{proof}
+Expanding the objective under $P = (\sigma; \tau_1, \ldots, \tau_H)$:
+\vspace{-0.5em}
+\begin{align*}
+    \langle W^B, P \cdot W^A \rangle
+    &= \sum_{i=1}^{H} \sum_M \langle W_M^{B,(\sigma(i))},\; \tau_i \cdot W_M^{A,(i)} \rangle.
+\end{align*}
+For fixed $\sigma$, each $\tau_i$ is optimized independently. Let $c_{ij} = -\max_{\tau} \sum_M \langle W_M^{B,(j)}, \tau \cdot W_M^{A,(i)} \rangle$ (cost of matching A-head $i$ to B-head $j$), computed for all $H^2$ pairs via $H^2$ inner LAPs. The problem reduces to $\min_{\sigma \in \mathcal{S}_H} \sum_i c_{i,\sigma(i)}$. Both layers are solved exactly (Hungarian algorithm); their combination yields the global optimum. \hfill $\square$
+\end{proof}
+
+\begin{remark}
+The term ``decomposition'' should not be confused with ``two independent stages.'' The inter-head and intra-head matchings remain coupled: each entry $c_{ij}$ of the outer cost matrix is itself the optimal value of an inner LAP. The decomposition is \emph{computational} (allowing the Hungarian algorithm to be applied at each level), not a claim of structural independence between the two levels.
+\end{remark}
+
+\begin{theorem}[Spectral proxy consistency]\label{thm:spectral-consistency}
+Let $W_i^A, W_j^B \in \mathbb{R}^{d_k \times d_m}$ with SVDs $U_i\Sigma_i V_i^\top$, $U_j\Sigma_j V_j^\top$. Define the spectral distance $D_{ij}^{\text{spec}} = \|\Sigma_i - \Sigma_j\|_F$. Then: (i) $D^{\text{spec}}$ is invariant under intra-head permutations: $D^{\text{spec}}(\tau_1 W_i^A, \tau_2 W_j^B) = D^{\text{spec}}(W_i^A, W_j^B)$ for any $\tau_1, \tau_2 \in \mathcal{S}_{d_k}$. (ii) $D_{ij}^{\text{spec}} \leq \min_{\tau} \|W_j^B - \tau \cdot W_i^A\|_F$ (Weyl's inequality lower bound).
+\end{theorem}
+
+\begin{proof}
+(i) $\tau \in \mathcal{S}_{d_k}$ is orthogonal, so $\tau W$ has SVD $(\tau U)\Sigma V^\top$; singular values are invariant. (ii) By Weyl's inequality~\cite{Horn1991}, $|\sigma_r(A) - \sigma_r(B)| \leq \|A - B\|_2$ for all $r$. Summing in $\ell_2$ gives $\|\Sigma_i - \Sigma_j\|_F \leq \|W_j^B - \tau W_i^A\|_F$ for all $\tau$. \hfill $\square$
+\end{proof}
+
+\begin{theorem}[Convergence of alternating optimization]\label{thm:convergence}
+The alternating optimization of \eqref{eq:multilayer-align} satisfies: (1) the objective is monotonically non-decreasing; (2) convergence occurs in finitely many steps; (3) the limit point is a local maximum.
+\end{theorem}
+
+\begin{proof}
+(1) Each step maximizes over $P_\ell$, so the objective cannot decrease. (2) The search space $\mathcal{W}(H, d_k)^L$ is a finite group; a monotone sequence on a finite set must converge in finite steps. (3) At convergence, each $P_\ell$ is optimal given fixed $P_j$ ($j \neq \ell$). \hfill $\square$
+\end{proof}
+
+\subsection{Complexity}
+
+For the spectral proxy (Algorithm~\ref{alg:spectral}): $H$ SVDs per MHA layer ($O(d_k^2 d_m) = O(d_m^3/H^2)$ each); $H$ intra-head LAPs at $O(d_k^3) = O(d_m^3/H^3)$ each; outer LAP $O(H^3)$. Total per layer: $O(d_m^3/H^2)$. For the exact variant (Algorithm~\ref{alg:exact}): $H^2$ inner LAPs plus one outer LAP, total $O(d_m^3/H)$. The spectral proxy trades optimality for an $H$-fold speedup. Both variants are one-time costs per model pair: a single alignment serves all downstream task vectors.

@@ -1,0 +1,37 @@
+% ============================================================
+% 3. Mathematical Background and Intuition
+% ============================================================
+\section{Mathematical Background and Intuition}
+\label{sec:intuition}
+
+\subsection{Geometric Picture of the Wreath Product}
+
+The wreath product $\mathcal{W}(H, d_k) = \mathcal{S}_H \wr \mathcal{S}_{d_k}$ is best understood in two steps.
+
+\paragraph{Step 1: Inter-head permutation $\mathcal{S}_H$.} Imagine $H$ containers, each holding $d_k$ neurons. $\mathcal{S}_H$ \emph{swaps entire containers}---moving container $\sigma^{-1}(h)$ to position $h$.
+
+\paragraph{Step 2: Intra-head permutation $\mathcal{S}_{d_k}$.} Within each container, $\tau_h \in \mathcal{S}_{d_k}$ \emph{re-numbers} the $d_k$ neurons.
+
+\paragraph{Why must it be a wreath product?} Can an arbitrary $\mathcal{S}_{d_m}$ permutation replace the wreath product structure? No---if dimensions from one head are split across multiple heads, the per-head softmax normalization is disrupted, since each head computes its own independent softmax:
+\begin{equation}\label{eq:softmax-per-head}
+    A_h = \softmax\!\left(\frac{Q_h K_h^\top}{\sqrt{d_k}}\right) \quad \text{(independent per head)}.
+\end{equation}
+Mixing dimensions from different heads into a single softmax couples originally independent attention competitions. Thus \emph{preserving head boundaries} requires exactly the wreath product structure. This intuition is made rigorous in Theorem~\ref{thm:symmetry-group}.
+
+\subsection{Computational Invariance under Permutation}
+
+\paragraph{A toy example.} Consider MHA with $d_m = 4, H = 2, d_k = 2$. Let $W_Q^{(1)}$ extract the first two dimensions of $\mathbf{x}$ and $W_Q^{(2)}$ extract the last two. Applying the inter-head swap $\sigma = (1\;2)$, $\tau_1 = \tau_2 = I_2$ yields: $Q'_1 = (x_3, x_4)$, $Q'_2 = (x_1, x_2)$. The two heads' Q-values are swapped, but the attention computation within each head is unchanged---the outputs $O_1$ and $O_2$ simply exchange positions. The wreath permutation is \emph{transparent} to the MHA computation: it renames dimensions without altering results.
+
+\paragraph{Why $\tau_h^\top\tau_h = I$ is crucial.} Under intra-head permutation $\tau_h$, we have $Q'_h = Q_h \tau_h^\top$ and $K'_h = K_h \tau_h^\top$. The attention score is:
+\begin{equation*}
+    Q'_h (K'_h)^\top = Q_h \tau_h^\top \tau_h K_h^\top = Q_h K_h^\top,
+\end{equation*}
+since permutation matrices are orthogonal ($\tau_h^\top\tau_h = I$). The permutation ``cancels out,'' the attention matrix is unchanged, and $V'_h = V_h \tau_h^\top$ yields $O'_h = O_h \tau_h^\top$. The permutation propagates cleanly to the output, establishing equivariance: $f_{P(W)}(X) = P \cdot f_W(X)$.
+
+\subsection{Intuition for Spectral Distance}
+
+The SVD of a head weight matrix $W \in \mathbb{R}^{d_k \times d_m}$ is $W = U \Sigma V^\top$, with singular values $\Sigma = \operatorname{diag}(\sigma_1, \ldots, \sigma_{d_k})$. Under permutation $\tau \in \mathcal{S}_{d_k}$, $\tau W = (\tau U) \Sigma V^\top$---only the left singular vectors change; $\Sigma$ is invariant. Thus $D_{ij} = \|\Sigma_i - \Sigma_j\|_F$ is a \emph{permutation-invariant} distance between heads, making it a natural candidate for inter-head matching. However, by Weyl's inequality, $D_{ij}$ is only a \emph{lower bound} on $\min_\tau \|W_i - \tau \cdot W_j\|_F$; two heads may share identical singular values but have misaligned singular vectors, in which case the spectral proxy fails to distinguish them. The exact cost $c_{ij}$ in Theorem~\ref{thm:exact-decomposition} resolves this by using the true optimal intra-head alignment cost.
+
+\subsection{Connection to Course Material}
+
+The wreath product analysis connects to \emph{applied functional analysis} (group actions and symmetry). The decomposition into inter-head and intra-head LAPs belongs to \emph{combinatorial optimization} (LAPs as LPs on the Birkhoff polytope). The alternating optimization convergence analysis draws on \emph{nonlinear optimization} (coordinate descent). SVD and spectral methods extend \emph{multivariate statistics} (PCA).

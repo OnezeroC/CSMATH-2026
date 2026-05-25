@@ -1,0 +1,10 @@
+% ============================================================
+% Abstract
+% ============================================================
+\begin{abstract}
+\noindent
+When foundation models are updated, fine-tuned downstream models risk obsolescence---retraining is expensive and original training data is often unavailable. This paper addresses the question: can fine-tuning knowledge, encoded as a \emph{task vector} (weight difference), be safely transported to a new model release without data or retraining? We provide a group-theoretic formalization. Under the head-block-preserving constraint, we prove that the maximal permutation symmetry subgroup of multi-head attention (MHA) is the wreath product $\mathcal{W}(H,d_k)=\mathcal{S}_H\wr\mathcal{S}_{d_k}$ (Theorem~1), providing a group-theoretic account of previously ad-hoc two-level alignment procedures. We further prove that the alignment optimization decomposes into an outer linear assignment problem (LAP) whose cost matrix is given by $H^2$ inner LAPs (Theorem~2), yielding the global optimum under the wreath-product constraint---in contrast to heuristic two-stage schemes using spectral distance as the outer cost. We establish spectral proxy consistency and Weyl-inequality bounds (Theorem~3), with finite-step convergence of the multi-layer alternating optimization (Theorem~4). Three experiments examine the theory: exhaustive enumeration confirming the wreath product characterization (Experiment~1), comparison of exact decomposition against spectral proxy on alignment scores (Experiment~2), and small-scale proof-of-concept task vector transport on TinyViT (Experiment~3).
+
+\vspace{0.3em}
+\noindent\textbf{Keywords:} computational applied mathematics; wreath product; multi-head attention; permutation alignment; task vector transport; linear assignment problem
+\end{abstract}

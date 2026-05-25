@@ -1,0 +1,47 @@
+% CSMATH 2026 Course Paper
+% School of Computer Science & Technology, Zhejiang University
+
+\documentclass[11pt,a4paper]{article}
+
+% === Tight margins ===
+\usepackage[top=2.0cm, bottom=2.0cm, left=2.0cm, right=2.0cm]{geometry}
+\usepackage{microtype}
+
+\input{preamble}
+
+\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
+\usepackage[pagebackref,breaklinks,colorlinks,allcolors=cvprblue]{hyperref}
+
+% === Paper info ===
+\newcommand{\studentName}{Yilin Chen}
+\newcommand{\studentId}{3230101092}
+\newcommand{\courseName}{Applied Mathematics for Computer Science}
+\newcommand{\courseCode}{CSMATH 2026}
+
+\title{\bfseries Wreath Product Symmetry and Permutation Alignment\\for Transformer Task Vector Transport\\[4pt]
+\large \textnormal{\courseCode\ Course Paper}}
+
+\author{\studentName \quad (\studentId)\\[4pt]
+{\small \courseName}\\[4pt]
+{\small School of Computer Science \& Technology, Zhejiang University}\\[4pt]
+{\small Spring 2026}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{sec/0_abstract}
+\input{sec/1_intro}
+\input{sec/2_formalization}
+\input{sec/3_intuition}
+\input{sec/4_method}
+\input{sec/5_experiments}
+\input{sec/6_insights}
+\input{sec/7_acknowledgments}
+
+\bibliographystyle{ieeenat_fullname}
+\bibliography{main}
+
+\end{document}

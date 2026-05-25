@@ -1,0 +1,61 @@
+% ============================================================
+% 2. Problem Formalization
+% ============================================================
+\section{Problem Formalization}
+\label{sec:formalization}
+
+\subsection{Notation and Setup}
+
+Consider an $L$-layer Transformer $f_\theta: \mathcal{X} \to \mathcal{Y}$ with parameters $\theta = \{W_\ell\}_{\ell=1}^{L}$. Let $\theta_A$ be the original model fine-tuned on a downstream task, $\theta_B$ the new release (same architecture, different training), and $\theta_A^{\text{ft}}$ the fine-tuned version. The \emph{task vector} is $\tau = \theta_A^{\text{ft}} - \theta_A$.
+
+\medskip\noindent\textbf{Multi-head attention structure.} For an MHA layer with embedding dimension $d_m$, $H$ heads, and per-head dimension $d_k = d_m/H$, the projection matrices $W_Q, W_K, W_V \in \mathbb{R}^{d_m \times d_m}$ admit row-wise partitioning:
+\begin{equation}\label{eq:head-partition}
+    W_Q = \begin{bmatrix} W_Q^{(1)} \\ \vdots \\ W_Q^{(H)} \end{bmatrix},\;
+    W_K = \begin{bmatrix} W_K^{(1)} \\ \vdots \\ W_K^{(H)} \end{bmatrix},\;
+    W_V = \begin{bmatrix} W_V^{(1)} \\ \vdots \\ W_V^{(H)} \end{bmatrix},
+\end{equation}
+where $W_Q^{(h)}, W_K^{(h)}, W_V^{(h)} \in \mathbb{R}^{d_k \times d_m}$ correspond to head $h$. For input $X \in \mathbb{R}^{n \times d_m}$ ($n$ tokens), head $h$ computes:
+\begin{equation}\label{eq:mha-head}
+    Q_h = X (W_Q^{(h)})^\top,\; K_h = X (W_K^{(h)})^\top,\; V_h = X (W_V^{(h)})^\top,\;
+    O_h = \softmax\!\left(\frac{Q_h K_h^\top}{\sqrt{d_k}}\right) V_h,
+\end{equation}
+with final output $O = [O_1 \mid \cdots \mid O_H] \cdot W_O \in \mathbb{R}^{n \times d_m}$.
+
+\medskip\noindent\textbf{Permutation action.} A permutation matrix $P \in \mathcal{S}_N$ satisfies $P^\top P = I_N$. In neural networks, $P$ acts on weight matrices via row permutation ($P \cdot W$) or column permutation ($W \cdot P^\top$), reordering neurons.
+
+\subsection{The Wreath Product Group}
+
+\begin{definition}[Wreath Product]\label{def:wreath}
+For permutation groups $G \subseteq \mathcal{S}_H$ and $K \subseteq \mathcal{S}_{d_k}$, the \emph{wreath product} $G \wr K$ is
+\begin{equation}
+    G \wr K = \{ (\sigma; \tau_1, \ldots, \tau_H) \mid \sigma \in G,\; \tau_h \in K \},
+\end{equation}
+with group operation $(\sigma; \{\tau_h\}) \circ (\sigma'; \{\tau'_h\}) = (\sigma\sigma'; \{\tau_{\sigma'(h)} \circ \tau'_h\})$. It is isomorphic to the semidirect product $G \ltimes K^H$, of order $|G| \cdot |K|^H$.
+\end{definition}
+
+Taking $G = \mathcal{S}_H$ (inter-head permutations) and $K = \mathcal{S}_{d_k}$ (intra-head permutations):
+\begin{equation}
+    \boxed{\mathcal{W}(H, d_k) \triangleq \mathcal{S}_H \wr \mathcal{S}_{d_k},\quad |\mathcal{W}(H, d_k)| = H! \cdot (d_k!)^H}.
+\end{equation}
+An element $P = (\sigma; \tau_1, \ldots, \tau_H) \in \mathcal{W}(H, d_k)$ acts on MHA projection matrices as
+\begin{equation}\label{eq:wreath-action}
+    P \cdot W_Q^{(h)} = \tau_h \cdot W_Q^{(\sigma^{-1}(h))},\quad h = 1, \ldots, H,
+\end{equation}
+and analogously for $W_K, W_V$. Intuitively: $\sigma$ reassigns heads to new positions, then each $\tau_h$ permutes dimensions within its head.
+
+\subsection{Alignment Problem}
+
+Given two independently trained MHA layer weights $W^A$ and $W^B$, we seek $P \in \mathcal{W}(H, d_k)$ maximizing the alignment inner product:
+\begin{equation}\label{eq:alignment-single}
+    P^* = \argmax_{P \in \mathcal{W}(H, d_k)} \langle W^B, P \cdot W^A \rangle,
+\end{equation}
+where $\langle W^B, P \cdot W^A \rangle = \sum_{M \in \{Q,K,V\}} \sum_{h=1}^{H} \langle W_M^{B,(h)}, \tau_{\sigma^{-1}(h)} \cdot W_M^{A,(\sigma^{-1}(h))} \rangle$.
+
+After alignment, $P$ transports the task vector: $\tilde{\theta}_B^{\text{ft}} = \theta_B + \alpha \cdot P(\tau)$, with scaling factor $\alpha > 0$.
+
+\medskip\noindent\textbf{Multi-layer extension.} For an $L$-layer Transformer, each layer $\ell$ has an independent permutation $P_\ell \in \mathcal{W}(H, d_k)$, with the previous layer's permutation propagating through residual connections:
+\begin{equation}\label{eq:multilayer-align}
+    \max_{\{P_\ell\}_{\ell=1}^{L}} \sum_{\ell=1}^{L} \big\langle W_\ell^{B},\; P_\ell \cdot W_\ell^{A} \cdot P_{\ell-1}^\top \big\rangle,\quad P_0 = I,\; P_{L+1} = I.
+\end{equation}
+
+\medskip\noindent\textbf{Problem class.} The search space $\mathcal{W}(H, d_k)^L$ is a finite group of size $(H! \cdot (d_k!)^H)^L$. Each subproblem (inter-head and intra-head LAP) is convex---LAPs admit LP relaxations on the Birkhoff polytope---but the joint multi-layer optimization~\eqref{eq:multilayer-align} is non-convex due to coupling between layers via residual connections. All subproblems are solvable via the Hungarian algorithm.

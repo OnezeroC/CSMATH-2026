@@ -20,6 +20,11 @@ venv/
 *.fdb_latexmk
 *.fls
 
+# Data
+*.tar.gz
+*.zip
+data/
+
 # IDE
 .vscode/
 .idea/

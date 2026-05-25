@@ -1,0 +1,41 @@
+% ============================================================
+% 1. Introduction
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+\subsection{Background and Motivation}
+
+Foundation models such as LLaMA and Qwen release new versions every few months. Downstream users fine-tune these models for specific tasks (domain classification, instruction following, preference alignment). When a new base model is released, the fine-tuned downstream model becomes \emph{stale}: directly using the old model forgoes improvements in the new release, while retraining on the new base is expensive and often impossible because the original training data is unavailable due to privacy or storage constraints.
+
+A promising approach uses \emph{task vectors}~\cite{Ilharco2023}: encode fine-tuning knowledge as the weight difference $\tau = \theta_{\text{ft}} - \theta_{\text{base}}$, then ``add'' it to the new model: $\theta_{\text{new}} + \alpha\cdot\tau$. However, this arithmetic relies on an implicit assumption: corresponding neurons in the old and new models share the same \emph{semantics}. Due to permutation symmetries in neural network training---arbitrarily permuting hidden neurons and adjusting subsequent layers yields a functionally equivalent network---two independently trained models may have completely different internal neuron orderings. This is the core challenge of the \emph{model re-basin} problem~\cite{Ainsworth2023,Entezari2022}.
+
+We therefore ask: \textbf{given the permutation symmetry group of the architecture, can we find the correct alignment to safely transport a task vector from an old model to a new one?}
+
+\subsection{Related Work}
+
+\paragraph{Task vectors and model editing.} Ilharco et al.~\cite{Ilharco2023} introduced task vectors, demonstrating weight-space arithmetic for editing model behavior. Its effectiveness, however, depends on weight-space ``semantic linearity''---when neuron alignment is disrupted by permutations, the arithmetic breaks down.
+
+\paragraph{Model re-basin and Git Re-Basin.} Ainsworth et al.~\cite{Ainsworth2023} proposed Git Re-Basin, aligning two independently trained models via permutation matching. Their method solves linear assignment problems (LAPs) on flattened weight matrices, which works well for MLPs and CNNs. However, flattening ignores the \emph{head structure} of multi-head attention: each head computes its own independent softmax, so mixing dimensions across heads destroys the attention mechanism's functional semantics. Entezari et al.~\cite{Entezari2022} and Singh et al.~\cite{Singh2023} studied permutation symmetries in deep networks theoretically, but did not specifically address MHA structural constraints.
+
+\paragraph{TransFusion.} Rinaldi et al.~\cite{Rinaldi2025} proposed TransFusion, which adapts the Git Re-Basin framework specifically for Transformer task-vector re-basin. Its core innovation is a two-level alignment: first matching heads via singular-value spectral distance, then matching dimensions within each head. The method empirically demonstrates task vector transport. However, the two-level procedure remains \emph{heuristic} in its theoretical grounding: it does not characterize the symmetry structure in group-theoretic terms, nor does it analyze the optimality of the two-stage decomposition.
+
+\paragraph{Connection to course material.} The mathematical framework of this paper connects to multiple CSMATH topics: LAPs as linear programming on the Birkhoff polytope (linear programming/duality), SVD and spectral analysis (multivariate statistics/PCA), wreath product group actions (applied functional analysis), and alternating optimization convergence (nonlinear optimization/coordinate descent).
+
+\subsection{Contributions}
+
+This paper provides a group-theoretic formalization of two-level Transformer alignment. Our primary contribution is \emph{re-expressing} the previously heuristic two-level procedure in the language of wreath products, and identifying a specific algorithmic improvement (exact outer cost). Concretely:
+
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{Symmetry group characterization} (Theorem~\ref{thm:symmetry-group}): under the head-block-preserving constraint, we identify the maximal permutation symmetry subgroup of MHA as the wreath product $\mathcal{W}(H,d_k) = \mathcal{S}_H \wr \mathcal{S}_{d_k}$.
+    \item \textbf{Exact decomposition} (Theorem~\ref{thm:exact-decomposition}): we prove that the alignment problem decomposes into a single outer $H \times H$ LAP whose cost matrix is determined by $H^2$ inner $d_k \times d_k$ LAPs, yielding the global optimum under the wreath constraint---a different mathematical object from heuristic schemes using spectral distance as outer cost.
+    \item \textbf{Spectral proxy analysis} (Theorem~\ref{thm:spectral-consistency}): we establish invariance of the SVD-based spectral distance under intra-head permutations and its lower-bound relationship to the exact cost via Weyl's inequality.
+    \item \textbf{Convergence guarantee} (Theorem~\ref{thm:convergence}): we prove monotonic convergence of alternating optimization over the finite wreath product group.
+    \item \textbf{Experimental examination}: three experiments check the theory's verifiability---exhaustive enumeration of wreath symmetries (Exp.~1), alignment score comparison of exact vs.\ spectral (Exp.~2), and small-scale proof-of-concept task vector transport (Exp.~3).
+\end{enumerate}
+
+We do \emph{not} claim a new algorithmic paradigm; the wreath product structure and two-level alignment have been implicitly used in prior work such as TransFusion~\cite{Rinaldi2025}. Our contribution is the group-theoretic characterization and the identification of an improved (albeit computationally costlier) variant of the outer cost.
+
+\subsection{Paper Structure}
+
+Section~\ref{sec:formalization} formalizes the problem and introduces the wreath product group. Section~\ref{sec:intuition} develops geometric intuition. Section~\ref{sec:method} presents algorithms and Theorems~1--4 with proofs. Section~\ref{sec:experiments} reports three experiments. Section~\ref{sec:insights} discusses strengths, limitations, and connections to course material.

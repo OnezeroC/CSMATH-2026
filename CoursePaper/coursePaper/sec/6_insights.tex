@@ -1,0 +1,68 @@
+% ============================================================
+% 6. Personal Insights
+% ============================================================
+\section{Personal Insights}
+\label{sec:insights}
+
+\subsection{Summary of the Approach}
+
+This paper re-examines Transformer task vector transport through the lens of group theory. The core observation is that multi-head attention's permutation symmetries, under the natural constraint of preserving head boundaries, are captured by the wreath product $\mathcal{W}(H,d_k) = \mathcal{S}_H \wr \mathcal{S}_{d_k}$. Within this framework, alignment decomposes into a hierarchy of linear assignment problems. The spectral proxy variant (Algorithm~\ref{alg:spectral}) matches the procedure implicitly used in TransFusion~\cite{Rinaldi2025}; the exact variant (Algorithm~\ref{alg:exact}) is a new, albeit computationally costlier, alternative that guarantees global optimality under the wreath constraint.
+
+\subsection{On the Nature of the Contribution}
+
+We wish to be precise about what this paper does and does not claim.
+
+\textbf{Primary value.} The main contribution is \emph{re-expressing} a previously heuristic two-level alignment procedure in the language of wreath products and linear assignment problems, and identifying a specific algorithmic improvement (exact outer cost via $H^2$ inner LAPs). This is a \emph{formalization paper}: its value lies in clarifying the mathematical structure underlying existing practice, not in proposing a new algorithmic paradigm. The wreath product structure and two-level alignment were implicitly used in prior work such as TransFusion~\cite{Rinaldi2025}; our contribution is the group-theoretic characterization and the optimality statement for the exact variant.
+
+\textbf{What is not claimed.} We do not claim to have discovered a new symmetry group---the two-level structure was already in use. We do not claim that the exact variant is practically superior to the spectral proxy in downstream tasks. We do not claim that the theoretical framework alone resolves the task vector transport problem.
+
+\textbf{Why this framing matters.} Identifying the wreath product structure is not merely relabeling. It transforms an ad-hoc engineering procedure into a well-defined optimization over a known algebraic object, which (i) clarifies what the search space actually is, (ii) reveals that the outer cost in prior work is a proxy and quantifies its gap to exactness (Experiment~2), and (iii) enables principled use of standard combinatorial optimization tools---the Hungarian algorithm for LAP, the Birkhoff polytope for LP relaxation---on the now-well-defined assignment problem. This kind of clarification---turning engineering practice into a mathematically tractable object---is the standard role of formalization in applied mathematics, and is the contribution this paper aims to make.
+
+\subsection{Strengths}
+
+\begin{itemize}
+    \item \textbf{Group-theoretic clarity}: Theorems~1--4 provide a clean characterization of the search space and the decomposition structure.
+    \item \textbf{Data-free}: Alignment uses only model weights; no training data or forward passes are needed.
+    \item \textbf{One-time cost}: A single alignment serves all downstream task vectors for a given model pair.
+    \item \textbf{Methodological pattern}: The approach demonstrates a general recipe---identify a neural component's symmetry group, then use group structure to guide alignment---applicable to other structured architectures (MoE experts, CNN channel groups, GroupNorm).
+\end{itemize}
+
+\subsection{Limitations and Future Directions}
+
+\begin{itemize}
+    \item \textbf{Theorem scope}: Theorem~\ref{thm:symmetry-group} operates under the head-block-preserving constraint and $W_O = I$. Relaxing these assumptions is nontrivial.
+    \item \textbf{Exact variant cost}: Computing $H^2$ inner LAPs becomes expensive for large $d_k$; more efficient approximations are needed.
+    \item \textbf{Downstream validation gap}: Experiment~2 shows a 32\% alignment score gap between exact and spectral, but Experiment~3 (using only the spectral variant) could not resolve method differences on a downstream task. Closing this gap---running the exact variant on a sufficiently challenging task with statistical rigor---is the most important next step.
+    \item \textbf{Experimental resolving power}: The current Experiment~3 lacks statistical power (single run, binary task, tiny model). A properly powered experiment requires larger models ($H \geq 6$), harder multi-class tasks, and multi-seed repetition with confidence intervals.
+    \item \textbf{FFN and other components}: MLP layers are treated with full-matrix LAP (Git Re-Basin style); finer-grained symmetries in activation functions and LayerNorm parameters are unexplored.
+\end{itemize}
+
+\subsection{Connection to Course Material}
+
+The mathematical tools employed in this paper span multiple CSMATH 2026 modules:
+\begin{itemize}
+    \item \textbf{Multivariate statistics}: SVD and spectral analysis extend PCA to head weight matrices; the permutation invariance of singular values is a direct application of ``common structure extraction.''
+    \item \textbf{Nonlinear optimization}: Alternating optimization convergence (Theorem~\ref{thm:convergence}) parallels coordinate descent; the finite-group setting guarantees finite-step termination.
+    \item \textbf{Applied functional analysis}: Wreath product group actions on MHA weight space and equivariance analysis connect to symmetry and invariance in operator theory.
+    \item \textbf{Combinatorial optimization}: LAPs as linear programs on the Birkhoff polytope ($\min_{X \in \mathcal{B}_n} \langle C, X \rangle$) and their solution via the Hungarian algorithm~\cite{Kuhn1955,Birkhoff1946} are classical integer programming cases from the LP/duality module.
+\end{itemize}
+
+\subsection{Comparison with Related Methods}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Comparison with related methods.}
+    \label{tab:comparison}
+    \small
+    \begin{tabular}{p{2.5cm}p{2.5cm}p{2.8cm}p{2.8cm}}
+        \toprule
+        Method & Core Math Tool & Strengths & Limitations \\
+        \midrule
+        Git Re-Basin~\cite{Ainsworth2023} & Single-matrix LAP (Hungarian) & Simple, effective for MLPs/CNNs & Designed for MLPs/CNNs; direct extension to MHA breaks softmax independence \\
+        \midrule
+        TransFusion~\cite{Rinaldi2025} & Two-level (SVD + intra-head LAP) & Adapts Re-Basin to Transformer attention structure; empirically effective & Outer cost is heuristic; no optimality guarantee \\
+        \midrule
+        This work & Wreath product + exact decomposition & Group-theoretic characterization; wreath-optimal outer cost (exact variant) & Exact variant costlier; $W_O \neq I$ unhandled \\
+        \bottomrule
+    \end{tabular}
+\end{table}
