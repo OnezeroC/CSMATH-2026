@@ -1,0 +1,71 @@
+% ============================================================
+% CSMATH 2026 课程论文 · 导言区
+% 浙江大学计算机科学与技术学院 · 计算机应用数学
+% ============================================================
+
+% --- 基础宏包 ---
+\usepackage{xcolor}
+
+% --- 数学宏包 ---
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% --- 图表与图形 ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% --- 算法 ---
+\usepackage[ruled,linesnumbered]{algorithm2e}
+\SetKwComment{Comment}{$\triangleright$\ }{}
+
+% --- 定理环境 ---
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{proposition}[theorem]{命题}
+\newtheorem{corollary}[theorem]{推论}
+\newtheorem{definition}{定义}[section]
+\newtheorem{remark}{注记}[section]
+\newtheorem{property}{性质}[section]
+\theoremstyle{definition}
+\newtheorem{example}{例}[section]
+
+% --- 常用数学运算符 ---
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\DeclareMathOperator*{\Var}{Var}
+\DeclareMathOperator*{\Cov}{Cov}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\rank}{rank}
+
+% --- 常用符号 ---
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\Y}{\mathcal{Y}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Loss}{\mathcal{L}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\inner}[2]{\left\langle#1, #2\right\rangle}
+\newcommand{\grad}{\nabla}
+
+% --- 行内标注（写作过程中使用，提交前禁用）---
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\todo}[1]{{\color{red}#1}}
+\newcommand{\TODO}[1]{\textbf{\color{red}[TODO: #1]}}
+% 提交版本取消注释下面两行以隐藏 TODO
+% \renewcommand{\TODO}[1]{}
+% \renewcommand{\todo}[1]{#1}
+
+% --- 微排版优化（定稿前取消注释）---
+% \usepackage{microtype}
+
+% --- 其他 ---
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{url}

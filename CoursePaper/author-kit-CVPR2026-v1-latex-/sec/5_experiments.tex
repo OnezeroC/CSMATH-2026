@@ -1,0 +1,68 @@
+% ============================================================
+% 五、实现与实验 (Implementation & Experiments)
+% ============================================================
+\section{实现与实验}
+
+\subsection{实现环境}
+
+\begin{itemize}
+    \item \textbf{编程语言}：Python 3.x（推荐）/ C++ / Julia / MATLAB
+    \item \textbf{关键依赖}：NumPy, SciPy, Matplotlib, PyTorch（如适用）
+    \item \textbf{运行环境}：macOS / Linux，CPU / GPU（说明型号）
+    \item \textbf{代码仓库}：【GitHub 链接，建议公开仓库并附 README】
+\end{itemize}
+
+\subsection{实验设置}
+
+\subsubsection{数据集}
+
+描述所使用的数据集（真实数据或合成数据），包括规模、维度、生成方式。
+
+\subsubsection{评估指标}
+
+列出并解释用于衡量方法性能的定量指标（例如：目标函数值 vs 迭代次数、重构误差、分类准确率、运行时间等）。
+
+\subsubsection{对比方法}
+
+如果进行了对比实验，列出所有对比方法及其简要说明。
+
+\subsection{实验结果}
+
+% === 至少一张图 ===
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.75\textwidth]{figures/convergence.pdf}
+    \caption{【图 1 标题：例如，目标函数值随迭代次数的收敛曲线】}
+    \label{fig:convergence}
+\end{figure}
+
+说明：图~\ref{fig:convergence} 展示了……
+
+% === 至少一张表 ===
+
+\begin{table}[htbp]
+    \centering
+    \caption{【表 1 标题：例如，不同方法的性能对比】}
+    \label{tab:results}
+    \begin{tabular}{lccc}
+        \toprule
+        方法 & 指标 1 & 指标 2 & 运行时间 (s) \\
+        \midrule
+        本文方法 & --- & --- & --- \\
+        对比方法 A & --- & --- & --- \\
+        对比方法 B & --- & --- & --- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+说明：表~\ref{tab:results} 显示了……
+
+\subsection{结果分析与讨论}
+
+\begin{itemize}
+    \item 方法是否按理论预期工作？如不符合，可能的原因是什么？
+    \item 参数变化（学习率、正则化系数等）对结果有什么影响？
+    \item 方法的成功案例与失败案例分别是什么样的？（建议展示具体例子）
+    \item 是否存在理论未覆盖的边界情况？
+\end{itemize}

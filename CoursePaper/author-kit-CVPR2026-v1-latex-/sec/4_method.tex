@@ -1,0 +1,63 @@
+% ============================================================
+% 四、方法分析 (Method Analysis)
+% ============================================================
+\section{方法分析}
+
+\subsection{算法描述}
+
+给出完整的伪代码或算法步骤：
+
+\begin{algorithm}[htbp]
+    \caption{【算法名称】}
+    \label{alg:main}
+    \SetKwInOut{Input}{输入}
+    \SetKwInOut{Output}{输出}
+    \Input{【输入变量说明】}
+    \Output{【输出变量说明】}
+    \BlankLine
+    \textbf{初始化}：设置参数 $\boldsymbol{\theta}^{(0)}$，学习率 $\eta$，最大迭代次数 $T$\;
+    \For{$t = 0, 1, \ldots, T-1$}{
+        计算梯度 $\mathbf{g}^{(t)} = \grad f(\boldsymbol{\theta}^{(t)})$\;
+        更新参数 $\boldsymbol{\theta}^{(t+1)} = \boldsymbol{\theta}^{(t)} - \eta \mathbf{g}^{(t)}$\;
+        \If{满足收敛条件}{
+            终止循环\;
+        }
+    }
+    \Return $\boldsymbol{\theta}^{(T)}$\;
+\end{algorithm}
+
+\subsection{推导过程}
+
+给出关键公式的推导。保持步骤清晰，注明每一步的依据（假设、性质或引用的定理）。
+
+\begin{proof}[推导]
+    展开推导过程：
+    \begin{align}
+        \norm{\grad f(\mathbf{x}) - \grad f(\mathbf{y})}
+        &\leq L \norm{\mathbf{x} - \mathbf{y}} \quad \text{(由 $L$-光滑假设)} \label{eq:smooth} \\
+        f(\mathbf{y}) &\leq f(\mathbf{x}) + \inner{\grad f(\mathbf{x})}{\mathbf{y} - \mathbf{x}} + \frac{L}{2}\norm{\mathbf{y} - \mathbf{x}}^2 \label{eq:descent}
+    \end{align}
+\end{proof}
+
+\subsection{收敛性/误差分析}
+
+\begin{theorem}[收敛性]\label{thm:convergence}
+    在假设 A1--A3 下，算法~\ref{alg:main} 产生的序列 $\{\mathbf{x}^{(t)}\}$ 满足：
+    \begin{equation}
+        f(\mathbf{x}^{(t)}) - f(\mathbf{x}^*) \leq \frac{L \norm{\mathbf{x}^{(0)} - \mathbf{x}^*}^2}{2t}
+    \end{equation}
+    即达到 $\epsilon$-精度需要 $O(1/\epsilon)$ 次迭代。
+\end{theorem}
+
+\begin{proof}
+    由式~(\ref{eq:descent}) 和梯度下降的更新规则……（给出简洁证明）
+\end{proof}
+
+\subsection{复杂度与数值稳定性讨论}
+
+\begin{itemize}
+    \item \textbf{时间复杂度}：每次迭代 $O(\cdots)$，总计 $O(\cdots)$；
+    \item \textbf{空间复杂度}：$O(\cdots)$；
+    \item \textbf{数值稳定性}：【讨论关键步骤的数值问题，如矩阵求逆的 conditioning、梯度消失/爆炸等】；
+    \item \textbf{参数敏感性}：【讨论学习率等超参数对收敛的影响】。
+\end{itemize}
