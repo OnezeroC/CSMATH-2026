@@ -19,8 +19,8 @@ For each trial:
   5. Record scores, equality of matchings, and the score gap.
 
 Produces two figures:
-  - Figure 1: exp2_scores_boxplot.pdf  (violin + scatter, Exact LAP vs Spectral Proxy)
-  - Figure 2: exp2_score_gap.pdf      (histogram of Score_exact - Score_spec)
+  - Figure 1: exp2a_boxplot.pdf  (violin + scatter, Exact LAP vs Spectral Proxy)
+  - Figure 2: exp2b_gap.pdf      (histogram of Score_exact - Score_spec)
 """
 
 import os
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     ax1.grid(axis="y", alpha=0.25)
 
     fig1.tight_layout()
-    path1 = os.path.join(FIGURES_DIR, "exp2_scores_boxplot.pdf")
+    path1 = os.path.join(FIGURES_DIR, "exp2a_boxplot.pdf")
     fig1.savefig(path1, dpi=150, bbox_inches="tight")
     plt.close(fig1)
 
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     ax2.grid(axis="y", alpha=0.25)
 
     fig2.tight_layout()
-    path2 = os.path.join(FIGURES_DIR, "exp2_score_gap.pdf")
+    path2 = os.path.join(FIGURES_DIR, "exp2b_gap.pdf")
     fig2.savefig(path2, dpi=150, bbox_inches="tight")
     plt.close(fig2)
 

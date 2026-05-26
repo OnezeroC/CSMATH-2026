@@ -4,10 +4,10 @@
 \section{Implementation and Experiments}
 \label{sec:experiments}
 
-We conduct three experiments at increasing scale. Experiment~1 exhaustively verifies the wreath product symmetry (Theorem~\ref{thm:symmetry-group}) on a tiny MHA layer. Experiment~2 compares exact decomposition against spectral proxy on alignment scores (Theorems~\ref{thm:exact-decomposition}, \ref{thm:spectral-consistency}) using synthetic weights. Experiment~3 provides a small-scale proof-of-concept of end-to-end task vector transport on TinyViT. We note upfront: Exp.~1 tests the theorem's verifiable scope (head-block-preserving constraint), Exp.~2 quantifies differences on the \emph{alignment objective} (not downstream performance), and Exp.~3 serves as qualitative evidence only.
+We conduct three experiments at increasing scale. Experiment~1 exhaustively verifies the wreath product symmetry (Theorem~\ref{thm:symmetry-group}) on a tiny MHA layer. Experiment~2 compares exact decomposition against spectral proxy on alignment scores (Theorems~\ref{thm:exact-decomposition}, \ref{thm:spectral-consistency}) using synthetic weights. Experiment~3 is a weight-space sanity check of the end-to-end transport pipeline on a randomly-initialized TinyViT. We note upfront: Exp.~1 tests the theorem's verifiable scope (head-block-preserving constraint), Exp.~2 quantifies differences on the \emph{alignment objective} (not downstream task performance), and Exp.~3 examines the \emph{loss landscape} under transport with a synthetic task vector---it provides qualitative evidence that the wreath-aligned transport behaves differently from naive transport, but is not a downstream task evaluation.
 
 \subsection{Implementation Environment}
-Python 3.10; PyTorch 2.x (neural networks), NumPy, SciPy (\texttt{linear\_sum\_assignment}), Matplotlib. Experiments~1--2 run on CPU; Experiment~3 benefits from GPU. Code in \texttt{code/}.
+Python 3.10; PyTorch 2.x (neural networks), NumPy, SciPy (\texttt{linear\_sum\_assignment}), Matplotlib. All three experiments run on CPU. Code in \texttt{code/}.
 
 \subsection{Experiment 1: Wreath Symmetry Enumeration}
 
@@ -51,42 +51,54 @@ Python 3.10; PyTorch 2.x (neural networks), NumPy, SciPy (\texttt{linear\_sum\_a
     \label{fig:exp2}
 \end{figure}
 
-\textbf{Caveat.} This experiment compares alignment \emph{scores} (Frobenius inner product), not downstream task performance. Whether the 32\% score gap translates to task-level differences is evaluated qualitatively in Exp.~3.
+\textbf{Caveat.} This experiment compares alignment \emph{scores} (Frobenius inner product), not downstream task performance. Whether the 32\% score gap translates to task-level differences would require larger-scale evaluation beyond the scope of this paper.
 
-\subsection{Experiment 3: End-to-End Proof-of-Concept}
+\subsection{Experiment 3: Weight-Space Sanity Check of End-to-End Transport}
 
-\paragraph{Objective.} Demonstrate the full pipeline on a small realistic model, as qualitative evidence.
+\paragraph{Objective and scope.} This experiment is deliberately limited to a \emph{weight-space sanity check}: we verify that the end-to-end pipeline (compute wreath alignment $\to$ apply alignment to a task vector $\to$ transport to a target model) executes coherently, and we examine whether the loss landscape under transport differs qualitatively between (i) wreath-aligned transport, (ii) naive transport ($P = I$), and (iii) a randomly shuffled task vector as a worst-case sanity baseline. We do \emph{not} fine-tune on a real task, evaluate downstream accuracy, or claim quantitative superiority of any method; doing so meaningfully would require larger models, real fine-tuning, and multi-seed repetition (discussed in Section~\ref{sec:insights}).
 
-\paragraph{Setup.} TinyViT ($d_m = 192$, $H = 3$, $L = 4$, $\approx$2M parameters) on CIFAR-10 binary classification. Train $\theta_A$ (5 epochs) and $\theta_B$ (5 epochs, different seed and data order). Fine-tune $\theta_A$ on the binary task (5 epochs, 20\% data) to obtain $\theta_A^{\text{ft}}$ and $\tau = \theta_A^{\text{ft}} - \theta_A$. Align using the spectral proxy variant; transport via $\tilde{\theta}_B^{\text{ft}} = \theta_B + \alpha \cdot P(\tau)$ for $\alpha \in [0, 2.0]$. Baselines: vanilla ($P=I$) and random permutation.
+\paragraph{Setup.} A TinyViT module ($d_m = 192$, $H = 3$, $d_k = 64$, $L = 4$ transformer blocks, $\approx$2M parameters) is randomly initialized with two distinct seeds to produce $\theta_A$ and $\theta_B$; no training is performed. To isolate the alignment mechanism from training-dependent confounders, we use a \emph{synthetic} task vector $\tau$: each parameter tensor of $\tau$ is drawn i.i.d.\ from $\mathcal{N}(0, 0.05^2)$ with the matching shape. Using $\theta_A$ as ``source'' and $\theta_B$ as ``target,'' we compute the wreath product alignment $P$ via Algorithm~\ref{alg:spectral} (spectral proxy variant): spectral inter-head matching by summed singular-value distance over $\{W_Q, W_K, W_V\}$, followed by an intra-head LAP per matched head pair using $-|W^B_j (W^A_i)^\top|$ as the cost matrix (entrywise absolute value, used as a robust matching score on synthetic random weights). We transport $\tau$ in three ways:
+\begin{itemize}[nosep]
+    \item \textbf{Wreath alignment (ours):} $\theta_A + \alpha \cdot P(\tau)$, with $P$ applied to the MHA $W_Q, W_K, W_V$ blocks of $\tau$ according to the per-layer wreath permutations;
+    \item \textbf{Vanilla:} $\theta_A + \alpha \cdot \tau$ (identity permutation, $P = I$);
+    \item \textbf{Random shuffle:} $\theta_A + \alpha \cdot \tilde{\tau}$, where each tensor of $\tilde{\tau}$ is the flatten-and-shuffle of $\tau$. This is a worst-case baseline that destroys all structure (including head boundaries and embedding dimensions), used as a lower-envelope reference.
+\end{itemize}
+For each $\alpha \in \{0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0\}$, we evaluate the forward-pass cross-entropy of the transported model on a batch of $32$ Gaussian input samples $X \sim \mathcal{N}(0, I)$ against a fixed random binary label vector. Since neither the model nor the labels carry task semantics, this loss is a \emph{landscape probe}, not a task metric---it measures how strongly transport perturbs the network's output distribution.
 
-\paragraph{Results.} Figure~\ref{fig:exp3} shows the outcome. Base model accuracies: $\theta_A$ 91.15\%, $\theta_B$ 90.15\%. Task vector norm: 17.34. Best per-method accuracies: Wreath 90.40\% ($\alpha=1.5$), Vanilla 90.30\% ($\alpha=1.0$), Random 90.45\% ($\alpha=0.6$). All methods perform within 0.15 percentage points of each other---well within sampling noise for $\approx$2,000 test samples.
+\paragraph{Results.} Figure~\ref{fig:exp3a} shows cross-entropy loss as a function of $\alpha$ for the three transport variants. At $\alpha = 0$ all curves coincide (no transport). As $\alpha$ grows, the three variants produce distinguishable trajectories: vanilla transport ($P=I$) follows one trajectory, wreath-aligned transport another, and random shuffle---which fully destroys weight structure---deviates most aggressively. Figure~\ref{fig:exp3b} plots wreath-aligned loss against vanilla loss across the $\alpha$ sweep; deviations from the diagonal indicate where the two pipelines produce systematically different loss values. The wreath and vanilla curves track each other closely (as expected: applying a permutation to a near-isotropic Gaussian task vector preserves most of its structure), while random shuffle is consistently the most disruptive across the $\alpha$ range.
 
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{figures/exp3a_scaling.pdf}
-        \caption{Accuracy vs.\ scaling $\alpha$.}
+        \caption{Cross-entropy loss vs.\ scaling $\alpha$ for the three transport variants.}
         \label{fig:exp3a}
     \end{subfigure}
     \hfill
     \begin{subfigure}{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{figures/exp3b_pareto.pdf}
-        \caption{Task vs.\ proxy accuracy.}
+        \caption{Wreath-aligned loss vs.\ vanilla loss across the $\alpha$ sweep; dashed line is the diagonal (equal loss).}
         \label{fig:exp3b}
     \end{subfigure}
-    \caption{Exp.~3: Small-scale proof-of-concept task vector transport. Note the narrow $y$-axis range in (b); differences are within sampling noise.}
+    \caption{Exp.~3: Loss-landscape probe on a randomly-initialized TinyViT with a synthetic Gaussian task vector. The experiment verifies that the end-to-end pipeline runs coherently and that the three transport variants produce distinct trajectories; it is \emph{not} a downstream task evaluation.}
     \label{fig:exp3}
 \end{figure}
 
-\paragraph{Interpretation.} This experiment is a \textbf{proof-of-concept, not quantitative evidence}. Limitations include: (i) the binary classification task is too easy (ceiling effect near 90\%); (ii) the TinyViT at 2M parameters with $H=3$ heads offers limited room for alignment to matter; (iii) only a single run was performed (no error bars); (iv) the exact decomposition variant was not compared due to computational constraints. The fact that random permutation achieves the highest raw accuracy at low $\alpha$ underscores that this setting lacks the discriminative power to rank methods. Quantitative conclusions require larger models, harder tasks, and multi-seed repetition.
+\paragraph{Interpretation.} The takeaway from Experiment~3 is intentionally modest:
+\begin{enumerate}[label=(\arabic*),nosep]
+    \item The end-to-end wreath-alignment pipeline (Algorithm~\ref{alg:spectral}) executes without numerical issues on a realistic-shape TinyViT and produces an alignment that can be applied to a task vector.
+    \item The three transport variants yield distinguishable loss trajectories on a synthetic probe, confirming that wreath alignment is a non-trivial intervention on the parameter geometry.
+    \item Because (a) the task vector is synthetic and isotropic, (b) the labels are random, and (c) no training is performed, this experiment \emph{cannot} adjudicate between wreath-aligned and vanilla transport on task quality. The two curves lying close together is the expected outcome under a near-isotropic $\tau$: there is no preferred direction for alignment to ``correct'' toward.
+\end{enumerate}
+A meaningful downstream comparison requires (i) a real fine-tuned task vector with structure tied to a downstream objective, (ii) trained $\theta_A, \theta_B$ that exhibit non-trivial alignment misfit, and (iii) multi-seed evaluation. We discuss this gap in Section~\ref{sec:insights}.
 
 \subsection{Discussion}
 
-Key takeaways across experiments:
+Key takeaways across the three experiments:
 \begin{enumerate}[label=(\arabic*)]
-    \item \textbf{Theoretical verifiability} (Exp.~1): Under the head-block-preserving constraint, the wreath product subgroup is exhaustively verified on a tiny MHA layer.
-    \item \textbf{Alignment score gap} (Exp.~2): Exact decomposition outperforms spectral proxy on the alignment objective by $\sim$32\%; the gap is due to discarded singular vector information. Whether this translates to downstream gains remains to be tested.
-    \item \textbf{Proof-of-concept} (Exp.~3): On TinyViT with binary CIFAR-10, all methods are statistically indistinguishable. This does \emph{not} invalidate the theoretical framework but rather indicates that the experimental setup lacks resolving power.
+    \item \textbf{Theoretical verifiability} (Exp.~1): Under the head-block-preserving constraint, the wreath product subgroup is exhaustively verified on a tiny MHA layer---all 1,152 wreath elements preserve equivariance to machine precision, and all 39,168 non-wreath elements break it.
+    \item \textbf{Alignment-score gap} (Exp.~2): Exact decomposition outperforms spectral proxy on the alignment objective by $\sim$32\% on average across 100 synthetic trials. The gap is attributable to the spectral proxy's discarding of singular-vector direction information.
+    \item \textbf{Pipeline coherence} (Exp.~3): The end-to-end wreath-alignment pipeline runs successfully on a TinyViT-scale model and produces transport trajectories that are quantitatively distinct from baselines under a synthetic probe. The experiment does \emph{not} establish that wreath alignment improves a downstream task---only that it is a coherent and non-trivial intervention. Closing this gap with a properly powered task evaluation is the most important next step (see Section~\ref{sec:insights}).
 \end{enumerate}

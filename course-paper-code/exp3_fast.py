@@ -51,6 +51,7 @@ class Block(nn.Module):
 class ViT(nn.Module):
     def __init__(self):
         super().__init__()
+        self.patch_embed = nn.Conv2d(3, D_M, kernel_size=4, stride=4)
         self.cls = nn.Parameter(torch.randn(1, 1, D_M))
         self.pos = nn.Parameter(torch.randn(1, 65, D_M))
         self.blocks = nn.ModuleList([Block() for _ in range(L)])
@@ -60,8 +61,7 @@ class ViT(nn.Module):
     def forward(self, x):
         B = x.shape[0]
         x = x.view(B, 3, 32, 32)
-        x = F.unfold(x, kernel_size=4, stride=4)
-        x = x.transpose(1, 2).reshape(B, -1, D_M)[:, :64, :]
+        x = self.patch_embed(x).flatten(2).transpose(1, 2)
         x = torch.cat([self.cls.expand(B, -1, -1), x], dim=1)
         x = x + self.pos
         for blk in self.blocks:
