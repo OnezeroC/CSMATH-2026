@@ -1,8 +1,8 @@
-# Math in Computer (Part 1) — Course Assignments
+# Applied Mathematics for Computer Science (Part 1) — Course Assignments
 
-School of Computer Science & Technology, Zhejiang University · CSMATH 2026 · Spring/Summer 2026
+School of Computer Science & Technology, Zhejiang University · CSMATH 2026 · Spring 2026
 
-This repository contains five programming assignments and a course paper for the *Math in Computer (Part 1)* course, covering dimensionality reduction, optimization, curve fitting, clustering, and their applications in computer science.
+This repository contains five programming assignments, a course paper, and supporting experiment code for the *Applied Mathematics for Computer Science (Part 1)* course, covering dimensionality reduction, optimization, curve fitting, clustering, and their applications in computer science.
 
 ---
 
@@ -15,6 +15,7 @@ This repository contains five programming assignments and a course paper for the
 ├── curveFitting/       # Assignment 3: Curve Fitting (Polynomial & Bezier)
 ├── Clustering/         # Assignment 4: Clustering Algorithms Compared
 ├── CoursePaper/        # Course Paper (CVPR 2026 LaTeX Template)
+├── course-paper-code/  # Course Paper Experiment Code
 └── README.md
 ```
 
@@ -119,29 +120,46 @@ A course paper framework built on the official **CVPR 2026 LaTeX template**:
 
 ```
 CoursePaper/
-├── rq-2026.pdf                          # Assignment requirements document
-└── author-kit-CVPR2026-v1-latex-/       # CVPR 2026 LaTeX template
+├── instruction.pdf                      # Assignment requirements document
+└── coursePaper/                         # CVPR 2026 LaTeX template
     ├── main.tex                          # Entry point (paper metadata, structure)
     ├── preamble.tex                      # Package imports
     ├── cvpr.sty                          # CVPR style file
     ├── main.bib                          # Bibliography (BibTeX)
     ├── ieeenat_fullname.bst              # Bibliography style
-    ├── sec/
-    │   ├── 0_abstract.tex                # Abstract
-    │   ├── 1_intro.tex                   # Introduction (background, related work, contributions)
-    │   ├── 2_formalization.tex           # Problem Formalization
-    │   ├── 3_intuition.tex               # Mathematical Background & Intuition
-    │   ├── 4_method.tex                  # Method Analysis
-    │   ├── 5_experiments.tex             # Implementation & Experiments
-    │   ├── 6_insights.tex                # Personal Insights
-    │   ├── 7_acknowledgments.tex         # Acknowledgments
-    │   └── X_suppl.tex                   # Supplementary Material
-    └── .github/workflows/latex-build.yml # CI auto-build
+    ├── main.pdf                          # Compiled paper
+    ├── figures/                          # Figures (PDF)
+    └── sec/
+        ├── 0_abstract.tex                # Abstract
+        ├── 1_intro.tex                   # Introduction (background, related work, contributions)
+        ├── 2_formalization.tex           # Problem Formalization
+        ├── 3_intuition.tex               # Mathematical Background & Intuition
+        ├── 4_method.tex                  # Method Analysis
+        ├── 5_experiments.tex             # Implementation & Experiments
+        ├── 6_insights.tex                # Personal Insights
+        ├── 7_acknowledgments.tex         # Acknowledgments
+        └── X_suppl.tex                   # Supplementary Material
 ```
 
 **Core competency pipeline**: Formalization → Intuition → Mathematical Derivation → Computation
 
-**Build**: `latexmk -pdf main.tex` or use the included GitHub Actions workflow.
+**Build**: `latexmk -pdf main.tex`
+
+---
+
+### 6. course-paper-code — Experiment Code
+
+Supporting experiment code for the course paper, focusing on wreath product equivariance, exact vs. spectral methods, and permutation rebasin:
+
+| File | Description |
+|------|-------------|
+| `exp1_wreath_verification.py` | Verify wreath product group properties and equivariance constraints |
+| `exp2_exact_vs_spectral.py` | Compare exact and spectral approaches to group-equivariant layers |
+| `exp3_fast.py` | Fast/optimized version of the permutation rebasin pipeline |
+| `exp3_rebasin_pipeline.py` | Full permutation rebasin pipeline (CIFAR-10) |
+| `data/` | CIFAR-10 dataset |
+
+**Dependencies**: `torch, numpy, matplotlib`
 
 ---
 
@@ -150,6 +168,7 @@ CoursePaper/
 - **Quick start**: Follow the assignment order; `main.py` is the entry point for each assignment
 - **Highlights**: VAE from scratch in `PCA/bonus.py`; three clustering algorithms implemented from scratch in `Clustering/main.py`
 - **Course paper**: The template is self-contained — fill in the sections, compile, and it's ready to submit
+- **Experiment code**: Run `exp1_wreath_verification.py` first to verify group-theoretic foundations, then `exp2_exact_vs_spectral.py` and `exp3_rebasin_pipeline.py`
 
 ## Environment
 
@@ -157,4 +176,4 @@ CoursePaper/
 pip install numpy matplotlib scipy scikit-learn umap-learn torch
 ```
 
-`umap-learn` is required for `PCA/allDigits.py` and `PCA/bonus.py`. `torch` is required for `LMA` and the VAE portion of `bonus.py`.
+`umap-learn` is required for `PCA/allDigits.py` and `PCA/bonus.py`. `torch` is required for `LMA`, the VAE portion of `bonus.py`, and `course-paper-code/`.
